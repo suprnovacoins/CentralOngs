@@ -1,24 +1,40 @@
 package com.example.spring.controller;
 
 import com.example.spring.entity.Ong;
+import com.example.spring.entity.OngModelAssembler;
 import com.example.spring.errorHandler.OngNotFoundException;
 import com.example.spring.repository.OngRepository;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
+
 
 @RestController
 public class OngController {
 
     private final OngRepository repository;
+    private final OngModelAssembler assembler;
 
-    public OngController(OngRepository repository) {
+    public OngController(OngRepository repository, OngModelAssembler assembler) {
         this.repository = repository;
+        this.assembler = assembler;
     }
 
     @GetMapping("/ongs")
-    List<Ong> all(){
-        return repository.findAll();
+    public CollectionModel<EntityModel<Ong>> all(){
+
+        List<EntityModel<Ong>> ongs = repository.findAll().stream()
+                .map(assembler::toModel)
+                .collect(Collectors.toList());
+
+        return CollectionModel.of(ongs,
+                linkTo(methodOn(OngController.class).all()).withSelfRel());
     }
 
     @PostMapping("/ongs")
@@ -26,10 +42,28 @@ public class OngController {
         return repository.save(newOng);
     }
 
+//    @GetMapping("/ongs/{id}")
+//    Ong ongById (@PathVariable Long id){
+//        return repository.findById(id)
+//                .orElseThrow(() -> new OngNotFoundException(id));
+//    }
+
+//    @GetMapping("/ongs/{id}")
+//    EntityModel one (@PathVariable Long id){
+//        Ong ong = repository.findById(id)
+//                .orElseThrow(() -> new OngNotFoundException(id));
+//
+//        return EntityModel.of(ong,
+//                linkTo(methodOn(OngController.class).one(id)).withSelfRel(),
+//                linkTo(methodOn(OngController.class).all()).withRel("ongs"));
+//    }
+
     @GetMapping("/ongs/{id}")
-    Ong ongById (@PathVariable Long id){
-        return repository.findById(id)
+    public EntityModel<Ong> one(@PathVariable Long id){
+        Ong ong = repository.findById(id)
                 .orElseThrow(() -> new OngNotFoundException(id));
+
+        return assembler.toModel(ong);
     }
 
     @PutMapping("/ongs/{id}")
